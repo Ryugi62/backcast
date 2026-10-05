@@ -12,7 +12,11 @@ assert.strictEqual(r.slackMin, 20);
 r = backcast(D, steps, D - 80 * 60000, 0);
 assert.strictEqual(r.status, 'late');
 assert.deepStrictEqual(r.cut, ['Video']);
+assert.strictEqual(r.stillShortMin, 0);
+// very late: cuts are not enough -> honest remaining shortfall
+r = backcast(D, steps, D - 40 * 60000, 0);
+assert.strictEqual(r.stillShortMin, 30);
 // buffer 50% grows durations
 r = backcast(D, steps, D - 1000 * 60000, 50);
 assert.strictEqual(r.plan[0].minutes, 90);
-console.log('all tests passed (3 scenarios)');
+console.log('all tests passed (4 scenarios)');

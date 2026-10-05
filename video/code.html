@@ -19,12 +19,14 @@ function backcast(deadlineMs, steps, nowMs, bufferPct) {
   else if (slackMin &lt; 30) status = 'start-now';
   // what to cut if late: drop the longest optional steps until it fits
   const cut = [];
+  let stillShortMin = 0;
   if (status === 'late') {
     let need = -slackMin;
     const opt = steps.map((s, i) => ({ ...s, i })).filter(s => s.optional).sort((a, b) => b.minutes - a.minutes);
     for (const s of opt) { if (need &lt;= 0) break; cut.push(s.name); need -= Math.round(s.minutes * buf); }
+    stillShortMin = Math.max(0, need);
   }
-  return { plan, startByMs: startBy, slackMin, status, cut };
+  return { plan, startByMs: startBy, slackMin, status, cut, stillShortMin };
 }
 if (typeof module !== 'undefined') module.exports = { backcast };
 </pre><pre style='flex:1;margin:0'>// test.js  -> node test.js: all tests passed (3 scenarios)
@@ -42,8 +44,12 @@ assert.strictEqual(r.slackMin, 20);
 r = backcast(D, steps, D - 80 * 60000, 0);
 assert.strictEqual(r.status, 'late');
 assert.deepStrictEqual(r.cut, ['Video']);
+assert.strictEqual(r.stillShortMin, 0);
+// very late: cuts are not enough -> honest remaining shortfall
+r = backcast(D, steps, D - 40 * 60000, 0);
+assert.strictEqual(r.stillShortMin, 30);
 // buffer 50% grows durations
 r = backcast(D, steps, D - 1000 * 60000, 50);
 assert.strictEqual(r.plan[0].minutes, 90);
-console.log('all tests passed (3 scenarios)');
+console.log('all tests passed (4 scenarios)');
 </pre></body></html>

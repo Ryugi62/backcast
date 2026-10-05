@@ -18,11 +18,13 @@ function backcast(deadlineMs, steps, nowMs, bufferPct) {
   else if (slackMin < 30) status = 'start-now';
   // what to cut if late: drop the longest optional steps until it fits
   const cut = [];
+  let stillShortMin = 0;
   if (status === 'late') {
     let need = -slackMin;
     const opt = steps.map((s, i) => ({ ...s, i })).filter(s => s.optional).sort((a, b) => b.minutes - a.minutes);
     for (const s of opt) { if (need <= 0) break; cut.push(s.name); need -= Math.round(s.minutes * buf); }
+    stillShortMin = Math.max(0, need);
   }
-  return { plan, startByMs: startBy, slackMin, status, cut };
+  return { plan, startByMs: startBy, slackMin, status, cut, stillShortMin };
 }
 if (typeof module !== 'undefined') module.exports = { backcast };

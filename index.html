@@ -38,7 +38,7 @@ const msg={late:'You are already late',['start-now']:'Start now','on-track':'On 
 const h=Math.floor(Math.abs(r.slackMin)/60),m=Math.abs(r.slackMin)%60;
 document.getElementById('out').innerHTML=`<span class="status ${r.status}">${msg}</span>
 <div class="big">Start by ${fmt(r.startByMs)}</div><small>${r.slackMin>=0?`${h}h ${m}m of slack left`:`${h}h ${m}m short`}</small>
-${r.cut.length?`<p><b>To still make it, cut:</b> ${r.cut.join(', ')}</p>`:''}
+${r.cut.length?`<p><b>To still make it, cut:</b> ${r.cut.join(', ')}</p>`:''}${r.stillShortMin>0?`<p><b>Even after cutting optional steps you are ${r.stillShortMin} min short</b> — shrink a required step or move the deadline.</p>`:''}
 <ol>${r.plan.map(p=>`<li><b>${p.name}</b> — ${fmt(p.startMs)} → ${fmt(p.endMs)} <small>(${p.minutes} min)</small></li>`).join('')}</ol>`}
 document.getElementById('add').onclick=()=>{addRow('New step',30,false);render()};
 dl.oninput=render;document.getElementById('buf').oninput=render;render();setInterval(render,30000);
