@@ -1,0 +1,45 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Backcast — plan backward from your deadline</title>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#191f28;--sub:#6b7684;--blue:#3182f6;--red:#f04452;--amber:#ff9f1a;--green:#03b26c}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink)}
+main{max-width:640px;margin:0 auto;padding:24px 16px}h1{font-size:28px;margin:8px 0 4px}p.sub{color:var(--sub);margin:0 0 20px}
+.card{background:var(--card);border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+label{display:block;font-size:14px;color:var(--sub);margin-bottom:6px}input{font:inherit;padding:10px 12px;border:1px solid #e5e8eb;border-radius:10px;width:100%}
+.row{display:grid;grid-template-columns:1fr 90px 70px 36px;gap:8px;margin-bottom:8px;align-items:center}
+button{font:inherit;border:0;border-radius:12px;padding:12px 16px;background:var(--blue);color:#fff;font-weight:600;cursor:pointer}
+button.ghost{background:#f2f4f6;color:var(--ink)}.big{font-size:40px;font-weight:800;margin:4px 0}
+.status{display:inline-block;padding:6px 12px;border-radius:999px;font-weight:700;color:#fff}
+.late{background:var(--red)}.start-now{background:var(--amber)}.on-track{background:var(--green)}
+ol{padding-left:20px}li{margin:6px 0}small{color:var(--sub)}
+</style></head><body><main>
+<h1>Backcast</h1><p class="sub">Students plan forward and miss deadlines. Backcast plans <b>backward</b> from the deadline and tells you the one time that matters: when you must start.</p>
+<div class="card"><label for="dl">Deadline</label><input id="dl" type="datetime-local">
+<label style="margin-top:12px" for="buf">Safety buffer (%)</label><input id="buf" type="number" value="20" min="0" max="200"></div>
+<div class="card"><label>Steps (in order) — name · minutes · optional?</label><div id="steps"></div>
+<button class="ghost" id="add">+ Add step</button></div>
+<div class="card" id="out" aria-live="polite"></div>
+<small>Made for LovHack Season 3. Everything runs in your browser; nothing is uploaded.</small>
+</main>
+<script src="backcast.js"></script>
+<script>
+const stepsEl=document.getElementById('steps');
+const defaults=[['Research & outline',90,false],['Build the core',180,false],['Polish & extras',60,true],['Record demo video',30,true],['Submit + double-check',15,false]];
+function addRow(n='',m=30,o=false){const d=document.createElement('div');d.className='row';
+d.innerHTML=`<input aria-label="step name" value="${n}"><input aria-label="minutes" type="number" min="1" value="${m}"><label style="margin:0"><input type="checkbox" ${o?'checked':''} style="width:auto"> opt</label><button class="ghost" aria-label="remove">×</button>`;
+d.querySelector('button').onclick=()=>{d.remove();render()};d.oninput=render;stepsEl.appendChild(d)}
+defaults.forEach(s=>addRow(...s));
+const dl=document.getElementById('dl');const t=new Date(Date.now()+8*3600e3);t.setMinutes(0,0,0);
+dl.value=new Date(t-t.getTimezoneOffset()*60e3).toISOString().slice(0,16);
+const fmt=ms=>new Date(ms).toLocaleString([], {weekday:'short',hour:'2-digit',minute:'2-digit'});
+function render(){const steps=[...stepsEl.children].map(r=>{const i=r.querySelectorAll('input');return{name:i[0].value||'Step',minutes:+i[1].value||0,optional:i[2].checked}});
+const r=backcast(new Date(dl.value).getTime(),steps,Date.now(),+document.getElementById('buf').value);
+const msg={late:'You are already late',['start-now']:'Start now','on-track':'On track'}[r.status];
+const h=Math.floor(Math.abs(r.slackMin)/60),m=Math.abs(r.slackMin)%60;
+document.getElementById('out').innerHTML=`<span class="status ${r.status}">${msg}</span>
+<div class="big">Start by ${fmt(r.startByMs)}</div><small>${r.slackMin>=0?`${h}h ${m}m of slack left`:`${h}h ${m}m short`}</small>
+${r.cut.length?`<p><b>To still make it, cut:</b> ${r.cut.join(', ')}</p>`:''}
+<ol>${r.plan.map(p=>`<li><b>${p.name}</b> — ${fmt(p.startMs)} → ${fmt(p.endMs)} <small>(${p.minutes} min)</small></li>`).join('')}</ol>`}
+document.getElementById('add').onclick=()=>{addRow('New step',30,false);render()};
+dl.oninput=render;document.getElementById('buf').oninput=render;render();setInterval(render,30000);
+</script></body></html>
