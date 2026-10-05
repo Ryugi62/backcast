@@ -1,0 +1,49 @@
+<html><body style='margin:0;background:#1e1e1e;color:#ddd;font:13px Menlo,monospace;display:flex;gap:16px;padding:16px'><pre style='flex:1;margin:0'>// backcast.js
+// Backcast core: pure scheduling logic (no DOM, no I/O).
+// Given a deadline and ordered steps with durations (minutes), plan backward:
+// each step's latest start = next step's latest start - its duration.
+function backcast(deadlineMs, steps, nowMs, bufferPct) {
+  const buf = 1 + (bufferPct || 0) / 100;
+  let end = deadlineMs;
+  const plan = [];
+  for (let i = steps.length - 1; i >= 0; i--) {
+    const dur = Math.round(steps[i].minutes * buf) * 60000;
+    const start = end - dur;
+    plan.unshift({ name: steps[i].name, startMs: start, endMs: end, minutes: Math.round(steps[i].minutes * buf) });
+    end = start;
+  }
+  const startBy = plan.length ? plan[0].startMs : deadlineMs;
+  const slackMin = Math.floor((startBy - nowMs) / 60000);
+  let status = 'on-track';
+  if (slackMin &lt; 0) status = 'late';
+  else if (slackMin &lt; 30) status = 'start-now';
+  // what to cut if late: drop the longest optional steps until it fits
+  const cut = [];
+  if (status === 'late') {
+    let need = -slackMin;
+    const opt = steps.map((s, i) => ({ ...s, i })).filter(s => s.optional).sort((a, b) => b.minutes - a.minutes);
+    for (const s of opt) { if (need &lt;= 0) break; cut.push(s.name); need -= Math.round(s.minutes * buf); }
+  }
+  return { plan, startByMs: startBy, slackMin, status, cut };
+}
+if (typeof module !== 'undefined') module.exports = { backcast };
+</pre><pre style='flex:1;margin:0'>// test.js  -> node test.js: all tests passed (3 scenarios)
+const assert = require('assert');
+const { backcast } = require('./backcast');
+const D = Date.UTC(2026, 9, 5, 3, 45); // 12:45 KST
+const steps = [{ name: 'Build', minutes: 60 }, { name: 'Video', minutes: 30, optional: true }, { name: 'Submit', minutes: 10 }];
+// on track: now = 2h before deadline
+let r = backcast(D, steps, D - 120 * 60000, 0);
+assert.strictEqual(r.plan[0].startMs, D - 100 * 60000);
+assert.strictEqual(r.plan[2].endMs, D);
+assert.strictEqual(r.status, 'start-now');
+assert.strictEqual(r.slackMin, 20);
+// late: now = 80 min before, need 100 -> cut Video (optional)
+r = backcast(D, steps, D - 80 * 60000, 0);
+assert.strictEqual(r.status, 'late');
+assert.deepStrictEqual(r.cut, ['Video']);
+// buffer 50% grows durations
+r = backcast(D, steps, D - 1000 * 60000, 50);
+assert.strictEqual(r.plan[0].minutes, 90);
+console.log('all tests passed (3 scenarios)');
+</pre></body></html>
